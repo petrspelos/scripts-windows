@@ -38,7 +38,5 @@ Console.WriteLine("Picking frames for preview...");
 
 var skipSize = (frames - 1) / 4;
 
-ffmpeg.ExportVideoFrame(videoFile, (uint)(skipSize * 1));
-ffmpeg.ExportVideoFrame(videoFile, (uint)(skipSize * 2));
-ffmpeg.ExportVideoFrame(videoFile, (uint)(skipSize * 3));
-ffmpeg.ExportVideoFrame(videoFile, (uint)(skipSize * 4));
+for(var i = 1; i < 5; i++)
+    ffmpeg.ExportVideoFrame(videoFile, (uint)(skipSize * i));
