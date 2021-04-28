@@ -37,6 +37,17 @@ Console.WriteLine($"The video in question has {frames} frame(s).");
 Console.WriteLine("Picking frames for preview...");
 
 var skipSize = (frames - 1) / 4;
+var offset = skipSize / 2;
 
-for(var i = 1; i < 5; i++)
-    ffmpeg.ExportVideoFrame(videoFile, (uint)(skipSize * i));
+var frameFiles = new string[4];
+
+for(var i = 1; i < frameFiles.Length + 1; i++)
+    frameFiles[i - 1] = ffmpeg.ExportVideoFrame(videoFile, (uint)((skipSize * i) - offset));
+
+GifGenerator.FromFrames(frameFiles);
+
+if(!args.Contains("--keep-frame-files"))
+    foreach(var frameFile in frameFiles)
+        File.Delete(frameFile);
+
+Console.WriteLine("Processing finished!");
