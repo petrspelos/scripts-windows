@@ -6,6 +6,7 @@ namespace VideoPreviewMaker
 {
     public abstract class ExternalApplication
     {
+        protected abstract string QuietSwitch { get; }
         public abstract string ExecutableName { get; }
 
         protected Process _process;
@@ -20,6 +21,7 @@ namespace VideoPreviewMaker
         {
             try
             {
+                _process.StartInfo.Arguments = QuietSwitch;
                 RunToCompletion();
             }
             catch(Exception e)
