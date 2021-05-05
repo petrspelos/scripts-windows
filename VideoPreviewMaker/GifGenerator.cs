@@ -49,6 +49,7 @@ namespace VideoPreviewMaker
                 frame.Metadata.GetGifMetadata().FrameDelay = 100;
 
             images[0].Metadata.GetFormatMetadata(GifFormat.Instance).ColorTableMode = GifColorTableMode.Local;
+            images[0].Metadata.GetFormatMetadata(GifFormat.Instance).RepeatCount = 0;
 
             images[0].SaveAsGif($"{Configuration.OutputGifFileName}.gif");
 
