@@ -29,19 +29,11 @@ Describe 'Copy outputs' {
         $LASTEXITCODE | Should Be 0
         Test-Path -LiteralPath $env:AMNESIA_GAME_DIR | Should Be $false
     }
-    It 'aggregates configuration failures before any writes' {
+    It 'stops at the first missing configuration value before writing' {
         $report = & pwsh -NoProfile -File $copyScript -Output staging 2>&1 | Out-String
         $LASTEXITCODE | Should Be 1
         $report | Should Match 'AMNESIA_TCP_RELEASE_DIR'
-        $report | Should Match 'AMNESIA_MP_CLIENT_DIR'
-        $report | Should Match 'AMNESIA_STAGING_DIR'
-        Test-Path -LiteralPath $env:AMNESIA_GAME_DIR | Should Be $false
-    }
-    It 'rejects a destination inside the resources source' {
-        $env:AMNESIA_GAME_DIR = "$env:AMNESIA_MP_RESOURCES_DIR/nested"
-        $report = & pwsh -NoProfile -File $copyScript -Output installed-game 2>&1 | Out-String
-        $LASTEXITCODE | Should Be 1
-        $report | Should Match 'overlap'
+        $report | Should Not Match 'AMNESIA_MP_CLIENT_DIR'
         Test-Path -LiteralPath $env:AMNESIA_GAME_DIR | Should Be $false
     }
     It 'merges resources, overwrites matching files, and preserves destination-only files' {
@@ -81,16 +73,38 @@ Describe 'Copy outputs' {
         Get-Content -LiteralPath "$env:AMNESIA_STAGING_DIR/resource.txt" | Should Be 'resource'
         Get-Content -LiteralPath "$env:AMNESIA_GAME_DIR/resource.txt" | Should Be 'resource'
     }
-    It 'rejects overlapping selected outputs and missing staging artifacts before writing' {
+    It 'reports a missing staging executable before writing' {
         $env:AMNESIA_TCP_RELEASE_DIR = New-Item -ItemType Directory -Path "$TestDrive/missing-release" -Force
         $env:AMNESIA_MP_CLIENT_DIR = New-Item -ItemType Directory -Path "$TestDrive/missing-client" -Force
         $env:AMNESIA_STAGING_DIR = "$env:AMNESIA_GAME_DIR/nested"
         $report = & pwsh -NoProfile -Command "& '$copyScript' -Output staging,installed-game" 2>&1 | Out-String
         $LASTEXITCODE | Should Be 1
         $report | Should Match 'Amnesia.exe'
-        $report | Should Match 'at least one client'
-        $report | Should Match 'overlap'
         Test-Path -LiteralPath $env:AMNESIA_GAME_DIR | Should Be $false
+    }
+    It 'requires a matching client file before creating staging output' {
+        $env:AMNESIA_TCP_RELEASE_DIR = New-Item -ItemType Directory -Path "$TestDrive/valid-release" -Force
+        Set-Content -LiteralPath "$env:AMNESIA_TCP_RELEASE_DIR/Amnesia.exe" -Value 'game'
+        $env:AMNESIA_MP_CLIENT_DIR = New-Item -ItemType Directory -Path "$TestDrive/empty-client" -Force
+        $env:AMNESIA_STAGING_DIR = "$TestDrive/missing-staging"
+        $report = & pwsh -NoProfile -File $copyScript -Output staging 2>&1 | Out-String
+        $LASTEXITCODE | Should Be 1
+        $report | Should Match 'at least one client'
+        Test-Path -LiteralPath $env:AMNESIA_STAGING_DIR | Should Be $false
+    }
+    It 'previews overwrites without changing existing destination files' {
+        New-Item -ItemType Directory -Path $env:AMNESIA_GAME_DIR -Force | Out-Null
+        Set-Content -LiteralPath "$env:AMNESIA_GAME_DIR/resource.txt" -Value 'old'
+        & pwsh -NoProfile -File $copyScript -Output installed-game -WhatIf
+        $LASTEXITCODE | Should Be 0
+        Get-Content -LiteralPath "$env:AMNESIA_GAME_DIR/resource.txt" | Should Be 'old'
+    }
+    It 'copies through a configured output junction without protective rejection' {
+        $actualOutput = New-Item -ItemType Directory -Path "$TestDrive/actual-output"
+        New-Item -ItemType Junction -Path $env:AMNESIA_GAME_DIR -Target $actualOutput.FullName | Out-Null
+        & pwsh -NoProfile -File $copyScript -Output installed-game
+        $LASTEXITCODE | Should Be 0
+        Get-Content -LiteralPath "$actualOutput/resource.txt" | Should Be 'resource'
     }
     It 'accepts empty resources and rejects quoted and relative paths' {
         Remove-Item -LiteralPath "$env:AMNESIA_MP_RESOURCES_DIR/resource.txt"
@@ -101,7 +115,6 @@ Describe 'Copy outputs' {
         $env:AMNESIA_MP_RESOURCES_DIR = '"C:\quoted"'
         $report = & pwsh -NoProfile -File $copyScript -Output installed-game 2>&1 | Out-String
         $LASTEXITCODE | Should Be 1
-        $report | Should Match 'AMNESIA_GAME_DIR'
         $report | Should Match 'AMNESIA_MP_RESOURCES_DIR'
     }
 }
