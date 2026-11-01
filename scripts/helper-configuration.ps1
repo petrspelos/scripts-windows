@@ -1,4 +1,4 @@
-# Shared by setup and copy-amnesia; values are read from the process on each call.
+# Shared by the helper commands; values are read from the process on each call.
 function Get-AmnesiaVariables {
     [ordered]@{
         Release = @{ Name = 'AMNESIA_TCP_RELEASE_DIR'; IsOutput = $false }
